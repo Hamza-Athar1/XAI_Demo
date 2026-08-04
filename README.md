@@ -2,7 +2,7 @@
 title: Grad-CAM vs HiResCAM Faithfulness Explorer
 emoji: 🧠
 colorFrom: blue
-colorTo: orange
+colorTo: purple
 sdk: streamlit
 sdk_version: 1.28.0
 app_file: app.py
