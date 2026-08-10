@@ -6,13 +6,6 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from PIL import Image
 
-# Optimize CPU and PyTorch threading for container environments
-torch.set_num_threads(1)
-try:
-    torch.set_num_interop_threads(1)
-except RuntimeError:
-    pass
-
 from model_def import DoodleCNN
 from pytorch_grad_cam import GradCAM, HiResCAM
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
@@ -69,23 +62,6 @@ def load_model():
     return model
 
 model = load_model()
-
-# Cached attribution map generation
-@st.cache_data
-def generate_cam_map(method_name: str, target_class_idx: int, img_bytes: bytes):
-    # Reconstruct input array from bytes
-    img_np = np.frombuffer(img_bytes, dtype=np.float32).reshape(1, 1, 28, 28)
-    input_tensor = torch.tensor(img_np).to(device)
-    targets = [ClassifierOutputTarget(target_class_idx)]
-    target_layers = [model.conv2]
-    
-    if method_name == "Grad-CAM":
-        cam_extractor = GradCAM(model=model, target_layers=target_layers)
-    else:
-        cam_extractor = HiResCAM(model=model, target_layers=target_layers)
-        
-    cam_map = cam_extractor(input_tensor=input_tensor, targets=targets)[0]
-    return cam_map
 
 # 2. Setup robust normalization function
 def normalize_heatmap(heatmap):
@@ -282,16 +258,18 @@ if img_to_run is not None:
             st.pyplot(fig)
             
         # Explanations
-        img_bytes = img_to_run.astype(np.float32).tobytes()
-        cam_cache = {}
-        
         for i, method_name in enumerate(methods_to_show):
             with cols_viz[i + 1]:
                 st.write(f"**{method_name}**")
                 
-                # Fetch cached CAM map
-                cam_map = generate_cam_map(method_name, target_class_idx, img_bytes)
-                cam_cache[method_name] = cam_map
+                # Setup specific CAM class
+                if method_name == "Grad-CAM":
+                    cam_extractor = GradCAM(model=model, target_layers=target_layers)
+                else:
+                    cam_extractor = HiResCAM(model=model, target_layers=target_layers)
+                    
+                # Generate raw CAM
+                cam_map = cam_extractor(input_tensor=input_tensor, targets=targets)[0]
                 
                 # Calculate value range to check for near-blank maps
                 cam_range = float(cam_map.max() - cam_map.min())
@@ -320,8 +298,11 @@ if img_to_run is not None:
                 
         # Compare metrics or differences
         if "Grad-CAM" in methods_to_show and "HiResCAM" in methods_to_show:
-            gc_map = cam_cache.get("Grad-CAM", generate_cam_map("Grad-CAM", target_class_idx, img_bytes))
-            hc_map = cam_cache.get("HiResCAM", generate_cam_map("HiResCAM", target_class_idx, img_bytes))
+            gradcam_extractor = GradCAM(model=model, target_layers=target_layers)
+            hirescam_extractor = HiResCAM(model=model, target_layers=target_layers)
+            
+            gc_map = gradcam_extractor(input_tensor=input_tensor, targets=targets)[0]
+            hc_map = hirescam_extractor(input_tensor=input_tensor, targets=targets)[0]
             
             if use_stroke_masking:
                 gc_map = gc_map * stroke_mask
