@@ -8,6 +8,7 @@ sdk_version: 1.28.0
 app_file: app.py
 pinned: false
 license: apache-2.0
+short_description: Interactive demo comparing Grad-CAM vs HiResCAM faithfulness on Quick Draw dataset.
 ---
 
 # Grad-CAM vs HiResCAM Faithfulness Explorer
