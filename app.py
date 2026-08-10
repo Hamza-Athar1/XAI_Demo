@@ -6,9 +6,12 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from PIL import Image
 
-# Optimize CPU and PyTorch threading for container environments / HF Spaces
+# Optimize CPU and PyTorch threading for container environments
 torch.set_num_threads(1)
-torch.set_num_interop_threads(1)
+try:
+    torch.set_num_interop_threads(1)
+except RuntimeError:
+    pass
 
 from model_def import DoodleCNN
 from pytorch_grad_cam import GradCAM, HiResCAM
